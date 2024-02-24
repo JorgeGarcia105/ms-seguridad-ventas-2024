@@ -5,7 +5,7 @@ import {
   repository,
   Where,
 } from '@loopback/repository';
-  import {
+import {
   del,
   get,
   getModelSchemaRef,
@@ -16,9 +16,8 @@ import {
   requestBody,
 } from '@loopback/rest';
 import {
-Menu,
-RolMenu,
-Rol,
+  Menu,
+  Rol
 } from '../models';
 import {MenuRepository} from '../repositories';
 
@@ -27,7 +26,7 @@ export class MenuRolController {
     @repository(MenuRepository) protected menuRepository: MenuRepository,
   ) { }
 
-  @get('/menus/{id}/rols', {
+  @get('/menus/{id}/roles', {
     responses: {
       '200': {
         description: 'Array of Menu has many Rol through RolMenu',
@@ -43,7 +42,7 @@ export class MenuRolController {
     @param.path.string('id') id: string,
     @param.query.object('filter') filter?: Filter<Rol>,
   ): Promise<Rol[]> {
-    return this.menuRepository.rols(id).find(filter);
+    return this.menuRepository.roles(id).find(filter);
   }
 
   @post('/menus/{id}/rols', {
@@ -67,7 +66,7 @@ export class MenuRolController {
       },
     }) rol: Omit<Rol, '_id'>,
   ): Promise<Rol> {
-    return this.menuRepository.rols(id).create(rol);
+    return this.menuRepository.roles(id).create(rol);
   }
 
   @patch('/menus/{id}/rols', {
@@ -90,7 +89,7 @@ export class MenuRolController {
     rol: Partial<Rol>,
     @param.query.object('where', getWhereSchemaFor(Rol)) where?: Where<Rol>,
   ): Promise<Count> {
-    return this.menuRepository.rols(id).patch(rol, where);
+    return this.menuRepository.roles(id).patch(rol, where);
   }
 
   @del('/menus/{id}/rols', {
@@ -105,6 +104,6 @@ export class MenuRolController {
     @param.path.string('id') id: string,
     @param.query.object('where', getWhereSchemaFor(Rol)) where?: Where<Rol>,
   ): Promise<Count> {
-    return this.menuRepository.rols(id).delete(where);
+    return this.menuRepository.roles(id).delete(where);
   }
 }
