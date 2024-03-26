@@ -14,10 +14,10 @@ export class AuthStrategy implements AuthenticationStrategy {
     @service(SeguridadUsuarioService)
     private servicioSeguridad: SeguridadUsuarioService,
     @inject(AuthenticationBindings.METADATA)
-    private metadata: AuthenticationMetadata,
+    private metadata: AuthenticationMetadata[],
     @repository(RolMenuRepository)
     private repositorioRolMenu: RolMenuRepository
-  ) {}
+  ) { }
 
 
   /**
@@ -26,54 +26,52 @@ export class AuthStrategy implements AuthenticationStrategy {
    * @returns el perfil del usuario, undefined cuando no tiene permisos o un HttpErrors[401] cuando no tiene token
    */
   async authenticate(request: Request): Promise<UserProfile | undefined> {
-    const token = parseBearerToken(request);
+    let token = parseBearerToken(request);
     if (token) {
-      const idRol = this.servicioSeguridad.obtenerRolDesdeToken(token);
-      const idMenu: string = this.metadata.options![0];
-      const accion: string = this.metadata.options![1];
+      let idRol = this.servicioSeguridad.obtenerRolDesdeToken(token);
+      let idMenu: string = this.metadata[0].options![0];
+      let accion: string = this.metadata[0].options![1];
 
-      const permiso = await this.repositorioRolMenu.findOne({
+      let permiso = await this.repositorioRolMenu.findOne({
         where: {
           rolId: idRol,
-          menuId: idMenu,
+          menuId: idMenu
         }
       });
       let continuar: boolean = false;
-      if(permiso) {
+      if (permiso) {
         switch (accion) {
-          case 'guardar':
+          case "guardar":
             continuar = permiso.guardar;
             break;
-          case 'editar':
+          case "editar":
             continuar = permiso.editar;
             break;
-          case 'listar':
+          case "listar":
             continuar = permiso.listar;
             break;
-          case 'eliminar':
+          case "eliminar":
             continuar = permiso.eliminar;
             break;
-          case 'descargar':
+          case "descargar":
             continuar = permiso.descargar;
             break;
 
           default:
             throw new HttpErrors[401]('No es posible ejecutar la acción solicitada por que no existe.');
         }
-        if(continuar) {
-          const perfil: UserProfile = Object.assign({
-            permitido: "ok"
+        if (continuar) {
+          let perfil: UserProfile = Object.assign({
+            permitido: "OK"
           });
           return perfil;
-        }else {
+        } else {
           return undefined;
         }
-      }else {
-        throw new HttpErrors[401]('No tiene permisos para realizar esta acción.');
+      } else {
+        throw new HttpErrors[401]('No es posible ejecutar la acción por falta de permisos.');
       }
-
     }
-    throw new HttpErrors[401]('Es es posible ejecutar la accion por falta de un token de autenticación.');
+    throw new HttpErrors[401]('No es posible ejecutar la acción por falta de un token de autenticación.');
   }
-
 }

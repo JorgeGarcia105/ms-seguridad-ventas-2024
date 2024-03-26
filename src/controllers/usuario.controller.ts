@@ -190,7 +190,7 @@ export class UsuarioController {
       }
     )
     credenciales: Credenciales
-  ): Promise<object>{
+  ): Promise<object> {
     const usuario = await this.servicioSeguridad.identificarUsuario(credenciales);
     if (usuario) {
       const codigo2fa = this.servicioSeguridad.crearTextoAleatorio(5);
@@ -224,11 +224,11 @@ export class UsuarioController {
       }
     )
     credenciales: FactorDeAutentificacionPorCodigo
-  ): Promise<object>{
-    const usuario = await this.servicioSeguridad.validarCodigo2fa(credenciales);
-    if(usuario){
-      const token = this.servicioSeguridad.crearToken(usuario);
-      if(usuario){
+  ): Promise<object> {
+    let usuario = await this.servicioSeguridad.validarCodigo2fa(credenciales);
+    if (usuario) {
+      let token = this.servicioSeguridad.crearToken(usuario);
+      if (usuario) {
         usuario.clave = "";
         try {
           await this.usuarioRepository.logins(usuario._id).patch({
@@ -238,7 +238,7 @@ export class UsuarioController {
             {
               estadoCodigo2fa: false
             });
-        }catch {
+        } catch {
           console.log("No se ha almacenado el estado de token en la base de datos.");
         }
         return {

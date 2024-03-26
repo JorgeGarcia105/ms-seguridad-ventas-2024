@@ -11,7 +11,7 @@ const jwt = require('jsonwebtoken');
 export class SeguridadUsuarioService {
   constructor(
     @repository(UsuarioRepository)
-    public repositorioUsuario : UsuarioRepository,
+    public repositorioUsuario: UsuarioRepository,
     @repository(LoginRepository)
     public repositorioLogin: LoginRepository
   ) { }
