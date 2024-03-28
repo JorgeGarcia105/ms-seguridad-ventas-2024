@@ -21,11 +21,12 @@ import {
   response,
 } from '@loopback/rest';
 import {UserProfile} from '@loopback/security';
+import {ConfiguracionNotificaciones} from '../config/notificaciones.config';
 import {ConfiguracionSeguridad} from '../config/seguridad.config';
-import {Credenciales, FactorDeAutentificacionPorCodigo, PermisosRolMenu, Usuario} from '../models';
+import {Credenciales, CredencialesRecuperarClave, FactorDeAutentificacionPorCodigo, PermisosRolMenu, Usuario} from '../models';
 import {Login} from '../models/login.model';
 import {LoginRepository, UsuarioRepository} from '../repositories';
-import {AuthService, SeguridadUsuarioService} from '../services';
+import {AuthService, NotificacionesService, SeguridadUsuarioService} from '../services';
 
 export class UsuarioController {
   constructor(
@@ -36,7 +37,9 @@ export class UsuarioController {
     @repository(LoginRepository)
     public repositorioLogin: LoginRepository,
     @service(AuthService)
-    private servicioAuth: AuthService
+    private servicioAuth: AuthService,
+    @service(NotificacionesService)
+    private servicioNotificaciones: NotificacionesService
   ) { }
 
   @post('/usuario')
@@ -205,11 +208,61 @@ export class UsuarioController {
       login.estadoToken = false;
       await this.repositorioLogin.create(login);
       usuario.clave = "";
-      // notificar al usuario via correo o mensaje de texto
+      // notificar al usuario via correo
+      let datos = {
+        correoDestino: usuario.correo,
+        nombreDestino: usuario.primerNombre + " " + usuario.segundoNombre,
+        contenidoCorreo: `Su código de segundo factor de autenticación es: ${codigo2fa}`,
+        asuntoCorreo: ConfiguracionNotificaciones.asunto2fa,
+      }
+      let url = ConfiguracionNotificaciones.urlNotificacio2fa;
+      this.servicioNotificaciones.EnviarNotificacion(datos, url);
       return usuario;
     }
     return new HttpErrors[401]("Las credenciales no son correctas");
   }
+
+  @post('/recuperar-clave')
+  @response(200, {
+    description: 'identificar un usuario por correo y clave',
+    content: {'application/json': {schema: getModelSchemaRef(CredencialesRecuperarClave)}},
+  })
+  async RecuperarClaveUsuario(
+    @requestBody(
+      {
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(CredencialesRecuperarClave)
+          }
+        }
+      }
+    )
+    credenciales: CredencialesRecuperarClave
+  ): Promise<object> {
+    const usuario = await this.usuarioRepository.findOne({
+      where: {
+        correo: credenciales.correo
+      }
+    });
+    if (usuario) {
+      let nuevaClave = this.servicioSeguridad.crearTextoAleatorio(10);
+      console.log(nuevaClave);
+      let claveCifrada = this.servicioSeguridad.cifrarTexto(nuevaClave);
+      usuario.clave = claveCifrada;
+      this.usuarioRepository.updateById(usuario._id, usuario);
+
+      // notificar al usuario via mensaje de texto (SMS)
+      let datos = {
+        numeroDestino: usuario.celular,
+        contenidoMensaje: `Hola ${usuario.primerNombre}, su nueva clave es: ${nuevaClave}`,
+      }
+      let url = ConfiguracionNotificaciones.urlNotificacioSms;
+      this.servicioNotificaciones.EnviarNotificacion(datos, url);
+      return usuario;
+    }
+    return new HttpErrors[401]("Las credenciales no son correctas");
+  }
+
 
   @post('/validar-permisos')
   @response(200, {
