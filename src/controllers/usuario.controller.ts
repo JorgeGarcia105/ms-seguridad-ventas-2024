@@ -23,7 +23,7 @@ import {
 import {UserProfile} from '@loopback/security';
 import {ConfiguracionNotificaciones} from '../config/notificaciones.config';
 import {ConfiguracionSeguridad} from '../config/seguridad.config';
-import {Credenciales, CredencialesRecuperarClave, FactorDeAutentificacionPorCodigo, PermisosRolMenu, Usuario} from '../models';
+import {Credenciales, CredencialesRecuperarClave, FactorDeAutentificacionPorCodigo, HashValidacionUsuario, PermisosRolMenu, Usuario} from '../models';
 import {Login} from '../models/login.model';
 import {LoginRepository, UsuarioRepository} from '../repositories';
 import {AuthService, NotificacionesService, SeguridadUsuarioService} from '../services';
@@ -42,6 +42,10 @@ export class UsuarioController {
     private servicioNotificaciones: NotificacionesService
   ) { }
 
+  @authenticate({
+    strategy: "auth",
+    options: ["usuario", "guardar"]
+  })
   @post('/usuario')
   @response(200, {
     description: 'Usuario model instance',
@@ -66,9 +70,92 @@ export class UsuarioController {
     const claveCifrada = this.servicioSeguridad.cifrarTexto(clave);
     // asignar la clave cifrada al usuario
     usuario.clave = claveCifrada;
+    usuario.estadoValidacion = true;
     // enviar un correo electrónico de notificación
 
     return this.usuarioRepository.create(usuario);
+  }
+
+  @post('/usuario-publico')
+  @response(200, {
+    description: 'Usuario publico',
+    content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
+  })
+  async creacionPublica(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(Usuario, {
+            title: 'NewUsuario',
+            exclude: ['_id'],
+          }),
+        },
+      },
+    })
+    usuario: Omit<Usuario, '_id'>,
+  ): Promise<Usuario> {
+    // Crear la clave
+    const clave = this.servicioSeguridad.crearTextoAleatorio(10);
+    //cifrar la clave
+    const claveCifrada = this.servicioSeguridad.cifrarTexto(clave);
+    // asignar la clave cifrada al usuario
+    usuario.clave = claveCifrada;
+    // hash de validación de correo
+    let hash = this.servicioSeguridad.crearTextoAleatorio(100);
+    usuario.hashValidacion = hash;
+    usuario.estadoValidacion = false;
+    usuario.aceptado = false;
+    usuario.rolId = ConfiguracionSeguridad.rolUsuarioPublico;
+
+    // Notificacion del hash
+    let enlace = `<a href="${ConfiguracionNotificaciones.urlValidacionCorreoFrontend}/${hash}" target='_blank><Validar</a>`;
+    let datos = {
+      correoDestino: usuario.correo,
+      nombreDestino: usuario.primerNombre + " " + usuario.segundoNombre,
+      contenidoCorreo: `Por favor visite este link para validar su correo: ${enlace}`,
+      asuntoCorreo: ConfiguracionNotificaciones.asuntoVerificacionCorreo
+    };
+    let url = ConfiguracionNotificaciones.urlNotificacio2fa;
+    this.servicioNotificaciones.EnviarNotificacion(datos, url);
+
+    // Envia de clave
+    let datosCorreo = {
+      correoDestino: usuario.correo,
+      nombreDestino: usuario.primerNombre + " " + usuario.segundoNombre,
+      contenidoCorreo: `Su clave asignada es: ${clave}`,
+      asuntoCorreo: ConfiguracionNotificaciones.claveAsignada
+    };
+    this.servicioNotificaciones.EnviarNotificacion(datosCorreo, url);
+    // enviar un correo electrónico de notificación
+    return this.usuarioRepository.create(usuario);
+  }
+
+  @post('/validar-hash-usuario')
+  @response(200, {
+    description: 'Validar hash de usuario',
+  })
+  async validarHashUsuario(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(HashValidacionUsuario, {}),
+        },
+      },
+    })
+    hash: HashValidacionUsuario,
+  ): Promise<boolean> {
+    let usuario = await this.usuarioRepository.findOne({
+      where: {
+        hashValidacion: hash.codigoHash,
+        estadoValidacion: false
+      }
+    });
+    if (usuario) {
+      usuario.estadoValidacion = true;
+      this.usuarioRepository.replaceById(usuario._id, usuario);
+      return true;
+    }
+    return false;
   }
 
   @get('/usuario/count')
@@ -224,7 +311,7 @@ export class UsuarioController {
 
   @post('/recuperar-clave')
   @response(200, {
-    description: 'identificar un usuario por correo y clave',
+    description: 'identificar un usuario por correo',
     content: {'application/json': {schema: getModelSchemaRef(CredencialesRecuperarClave)}},
   })
   async RecuperarClaveUsuario(
@@ -306,6 +393,7 @@ export class UsuarioController {
     if (usuario) {
       let token = this.servicioSeguridad.crearToken(usuario);
       if (usuario) {
+        let menu = [];
         usuario.clave = "";
         try {
           await this.usuarioRepository.logins(usuario._id).patch({
@@ -318,9 +406,11 @@ export class UsuarioController {
         } catch {
           console.log("No se ha almacenado el estado de token en la base de datos.");
         }
+        menu = await this.servicioSeguridad.consultarLosPermisosDeMenuPorUsuario(usuario.rolId);
         return {
           user: usuario,
-          token: token
+          token: token,
+          menu: menu
         };
       }
     }

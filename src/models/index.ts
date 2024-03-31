@@ -9,3 +9,4 @@ export * from './usuario.model';
 
 export * from './permisos-rol-menu.model';
 export * from './credenciales-recuperar-clave.model';
+export * from './hash-validacion-usuario.model';
