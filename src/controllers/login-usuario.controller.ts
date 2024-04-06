@@ -1,15 +1,6 @@
-import {
-  repository,
-} from '@loopback/repository';
-import {
-  param,
-  get,
-  getModelSchemaRef,
-} from '@loopback/rest';
-import {
-  Login,
-  Usuario,
-} from '../models';
+import {repository} from '@loopback/repository';
+import {get, getModelSchemaRef, param, } from '@loopback/rest';
+import {Login, Usuario, } from '../models';
 import {LoginRepository} from '../repositories';
 
 export class LoginUsuarioController {

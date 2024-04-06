@@ -1,6 +1,5 @@
 import { /* inject, */ BindingScope, injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
-import {ConfiguracionSeguridad} from '../config/seguridad.config';
 import {Credenciales, FactorDeAutentificacionPorCodigo, RolMenu, Usuario} from '../models';
 import {LoginRepository, RolMenuRepository, UsuarioRepository} from '../repositories';
 const generator = require('generate-password');
@@ -51,7 +50,7 @@ export class SeguridadUsuarioService {
         correo: credenciales.correo,
         clave: credenciales.clave,
         estadoValidacion: true,
-        aceptado: true
+        //aceptado: true
       }
     });
     return usuario as Usuario;
@@ -59,11 +58,11 @@ export class SeguridadUsuarioService {
 
   /**
    * Valida un codigo 2fa para un usuario
-   * @param credencialesafa credenciales del usuario con el codigo 2fa
+   * @param credenciales2fa credenciales del usuario con el codigo 2fa
    * @returns el registro de login o null
    */
   async validarCodigo2fa(credenciales2fa: FactorDeAutentificacionPorCodigo): Promise<Usuario | null> {
-    const login = await this.repositorioLogin.findOne({
+    let login = await this.repositorioLogin.findOne({
       where: {
         usuarioId: credenciales2fa.usuarioId,
         codigo2fa: credenciales2fa.codigo2fa,
@@ -71,7 +70,7 @@ export class SeguridadUsuarioService {
       }
     });
     if (login) {
-      const usuario = this.repositorioUsuario.findById(credenciales2fa.usuarioId);
+      let usuario = this.repositorioUsuario.findById(credenciales2fa.usuarioId);
       return usuario;
     }
     return null;
@@ -83,12 +82,12 @@ export class SeguridadUsuarioService {
    * @returns token
    */
   crearToken(usuario: Usuario): string {
-    const datos = {
+    let datos = {
       name: `${usuario.primerNombre} ${usuario.segundoNombre} ${usuario.primerApellido} ${usuario.segundoApellido}`,
       role: usuario.rolId,
       email: usuario.correo
     };
-    const token = jwt.sign(datos, ConfiguracionSeguridad.claveJWT)
+    let token = jwt.sign(datos, "Admin@2024*") //ConfiguracionSeguridad.claveJWT
     return token;
   }
 
@@ -98,15 +97,15 @@ export class SeguridadUsuarioService {
    * @returns id del rol del usuario
    */
   obtenerRolDesdeToken(tk: string): string {
-    const obj = jwt.verify(tk, ConfiguracionSeguridad.claveJWT)
-    return obj.role
+    let obj = jwt.verify(tk, "Admin@2024*") //ConfiguracionSeguridad.claveJWT
+    return obj.role;
   }
 
   /**
    * Retorna los permisos del rol
    * @param idRol id del rol a buscar y que esta asociado al usuario
    */
-  async consultarLosPermisosDeMenuPorUsuario(idRol: string): Promise<RolMenu[]> {
+  async ConsultarLosPermisosDeMenuPorUsuario(idRol: string): Promise<RolMenu[]> {
     let menu: RolMenu[] = await this.repositorioRolMenu.find({
       where: {
         listar: true,

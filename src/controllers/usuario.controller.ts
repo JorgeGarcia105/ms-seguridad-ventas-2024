@@ -44,7 +44,7 @@ export class UsuarioController {
 
   @authenticate({
     strategy: "auth",
-    options: ["usuario", "guardar"]
+    options: [ConfiguracionSeguridad.menuUsuarioId, ConfiguracionSeguridad.guardarAccion]
   })
   @post('/usuario')
   @response(200, {
@@ -65,9 +65,9 @@ export class UsuarioController {
     usuario: Omit<Usuario, '_id'>,
   ): Promise<Usuario> {
     // Crear la clave
-    const clave = this.servicioSeguridad.crearTextoAleatorio(10);
+    let clave = this.servicioSeguridad.crearTextoAleatorio(10);
     //cifrar la clave
-    const claveCifrada = this.servicioSeguridad.cifrarTexto(clave);
+    let claveCifrada = this.servicioSeguridad.cifrarTexto(clave);
     // asignar la clave cifrada al usuario
     usuario.clave = claveCifrada;
     usuario.estadoValidacion = true;
@@ -95,9 +95,9 @@ export class UsuarioController {
     usuario: Omit<Usuario, '_id'>,
   ): Promise<Usuario> {
     // Crear la clave
-    const clave = this.servicioSeguridad.crearTextoAleatorio(10);
+    let clave = this.servicioSeguridad.crearTextoAleatorio(10);
     //cifrar la clave
-    const claveCifrada = this.servicioSeguridad.cifrarTexto(clave);
+    let claveCifrada = this.servicioSeguridad.cifrarTexto(clave);
     // asignar la clave cifrada al usuario
     usuario.clave = claveCifrada;
     // hash de validación de correo
@@ -115,7 +115,7 @@ export class UsuarioController {
       contenidoCorreo: `Por favor visite este link para validar su correo: ${enlace}`,
       asuntoCorreo: ConfiguracionNotificaciones.asuntoVerificacionCorreo
     };
-    let url = ConfiguracionNotificaciones.urlNotificacio2fa;
+    let url = ConfiguracionNotificaciones.urlNotificaciones2fa;
     this.servicioNotificaciones.EnviarNotificacion(datos, url);
 
     // Envia de clave
@@ -270,7 +270,7 @@ export class UsuarioController {
   @post('/identificar-usuario')
   @response(200, {
     description: 'identificar un usuario por correo y clave',
-    content: {'application/json': {schema: getModelSchemaRef(Credenciales)}},
+    content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
   })
   async identificarUsuario(
     @requestBody(
@@ -284,10 +284,10 @@ export class UsuarioController {
     )
     credenciales: Credenciales
   ): Promise<object> {
-    const usuario = await this.servicioSeguridad.identificarUsuario(credenciales);
+    let usuario = await this.servicioSeguridad.identificarUsuario(credenciales);
     if (usuario) {
-      const codigo2fa = this.servicioSeguridad.crearTextoAleatorio(5);
-      const login: Login = new Login();
+      let codigo2fa = this.servicioSeguridad.crearTextoAleatorio(5);
+      let login: Login = new Login();
       login.usuarioId = usuario._id!;
       login.codigo2fa = codigo2fa;
       login.estadoCodigo2fa = false;
@@ -302,7 +302,7 @@ export class UsuarioController {
         contenidoCorreo: `Su código de segundo factor de autenticación es: ${codigo2fa}`,
         asuntoCorreo: ConfiguracionNotificaciones.asunto2fa,
       }
-      let url = ConfiguracionNotificaciones.urlNotificacio2fa;
+      let url = ConfiguracionNotificaciones.urlNotificaciones2fa;
       this.servicioNotificaciones.EnviarNotificacion(datos, url);
       return usuario;
     }
@@ -312,7 +312,7 @@ export class UsuarioController {
   @post('/recuperar-clave')
   @response(200, {
     description: 'identificar un usuario por correo',
-    content: {'application/json': {schema: getModelSchemaRef(CredencialesRecuperarClave)}},
+    content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
   })
   async RecuperarClaveUsuario(
     @requestBody(
@@ -343,7 +343,7 @@ export class UsuarioController {
         numeroDestino: usuario.celular,
         contenidoMensaje: `Hola ${usuario.primerNombre}, su nueva clave es: ${nuevaClave}`,
       }
-      let url = ConfiguracionNotificaciones.urlNotificacioSms;
+      let url = ConfiguracionNotificaciones.urlNotificacionesSms;
       this.servicioNotificaciones.EnviarNotificacion(datos, url);
       return usuario;
     }
@@ -375,7 +375,7 @@ export class UsuarioController {
   @post('verificar-2fa')
   @response(200, {
     description: 'validar el código 2fa',
-    content: {'application/json': {schema: getModelSchemaRef(FactorDeAutentificacionPorCodigo)}},
+    //content: {'application/json': {schema: getModelSchemaRef(FactorDeAutentificacionPorCodigo)}},
   })
   async verificarCodigo2fa(
     @requestBody(
@@ -392,8 +392,8 @@ export class UsuarioController {
     let usuario = await this.servicioSeguridad.validarCodigo2fa(credenciales);
     if (usuario) {
       let token = this.servicioSeguridad.crearToken(usuario);
+      let menu = [];
       if (usuario) {
-        let menu = [];
         usuario.clave = "";
         try {
           await this.usuarioRepository.logins(usuario._id).patch({
@@ -406,7 +406,7 @@ export class UsuarioController {
         } catch {
           console.log("No se ha almacenado el estado de token en la base de datos.");
         }
-        menu = await this.servicioSeguridad.consultarLosPermisosDeMenuPorUsuario(usuario.rolId);
+        menu = await this.servicioSeguridad.ConsultarLosPermisosDeMenuPorUsuario(usuario.rolId);
         return {
           user: usuario,
           token: token,

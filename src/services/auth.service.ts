@@ -15,9 +15,10 @@ export class AuthService {
     let permiso = await this.repositorioRolMenu.findOne({
       where: {
         rolId: idRol,
-        menuId: idMenu
+        menuId: idMenu,
       }
     });
+
     let continuar: boolean = false;
     if (permiso) {
       switch (accion) {
