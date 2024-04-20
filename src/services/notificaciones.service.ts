@@ -1,4 +1,4 @@
-import { /* inject, */ BindingScope, injectable} from '@loopback/core';
+import {BindingScope, injectable} from '@loopback/core';
 const fetch = require('node-fetch');
 
 @injectable({scope: BindingScope.TRANSIENT})

@@ -1,5 +1,6 @@
 import { /* inject, */ BindingScope, injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
+import {ConfiguracionSeguridad} from '../config/seguridad.config';
 import {Credenciales, FactorDeAutentificacionPorCodigo, RolMenu, Usuario} from '../models';
 import {LoginRepository, RolMenuRepository, UsuarioRepository} from '../repositories';
 const generator = require('generate-password');
@@ -15,14 +16,16 @@ export class SeguridadUsuarioService {
     public repositorioLogin: LoginRepository,
     @repository(RolMenuRepository)
     private repositorioRolMenu: RolMenuRepository
-  ) { }
+  ) {
+
+  }
 
   /**
-   * Crear un clave aleatoria
+   * Crear una clave aleatoria
    * @returns cadena aleatoria de n caracteres
    */
   crearTextoAleatorio(n: number): string {
-    const clave = generator.generate({
+    let clave = generator.generate({
       length: n,
       numbers: true
     });
@@ -30,35 +33,35 @@ export class SeguridadUsuarioService {
   }
 
   /**
-   * Cifrar una cadena de con metodo MD5
+   * Cifrar una cadena con método md5
    * @param cadena texto a cifrar
-   * @returns cadena cifrada con MD5
+   * @returns cadena cifrada con md5
    */
   cifrarTexto(cadena: string): string {
-    const cadenaCifrada = MD5(cadena).toString();
+    let cadenaCifrada = MD5(cadena).toString();
     return cadenaCifrada;
   }
 
   /**
    * Se busca un usuario por sus credenciales de acceso
-   * @param credenciales del usuario
+   * @param credenciales credenciales del usuario
    * @returns usuario encontrado o null
    */
   async identificarUsuario(credenciales: Credenciales): Promise<Usuario | null> {
-    const usuario = await this.repositorioUsuario.findOne({
+    let usuario = await this.repositorioUsuario.findOne({
       where: {
         correo: credenciales.correo,
         clave: credenciales.clave,
         estadoValidacion: true,
-        //aceptado: true
       }
     });
+    console.log(usuario)
     return usuario as Usuario;
   }
 
   /**
-   * Valida un codigo 2fa para un usuario
-   * @param credenciales2fa credenciales del usuario con el codigo 2fa
+   * Valida un código de 2fa para un usuario
+   * @param credenciales2fa credenciales del usuario con el código del 2fa
    * @returns el registro de login o null
    */
   async validarCodigo2fa(credenciales2fa: FactorDeAutentificacionPorCodigo): Promise<Usuario | null> {
@@ -70,15 +73,15 @@ export class SeguridadUsuarioService {
       }
     });
     if (login) {
-      let usuario = this.repositorioUsuario.findById(credenciales2fa.usuarioId);
+      let usuario = await this.repositorioUsuario.findById(credenciales2fa.usuarioId);
       return usuario;
     }
     return null;
   }
 
   /**
-   * Geracion del JWT para el usuario
-   * @param usuario informacion del usuario
+   * Generación de jwt
+   * @param usuario información del usuario
    * @returns token
    */
   crearToken(usuario: Usuario): string {
@@ -87,31 +90,33 @@ export class SeguridadUsuarioService {
       role: usuario.rolId,
       email: usuario.correo
     };
-    let token = jwt.sign(datos, "Admin@2024*") //ConfiguracionSeguridad.claveJWT
+    let token = jwt.sign(datos, ConfiguracionSeguridad.claveJWT);
     return token;
   }
 
   /**
-   * Validar y Obtener el rol del token
-   * @param tk token
-   * @returns id del rol del usuario
+   * Valida y obtiene el rol de un token
+   * @param tk el token
+   * @returns el _id del rol
    */
   obtenerRolDesdeToken(tk: string): string {
-    let obj = jwt.verify(tk, "Admin@2024*") //ConfiguracionSeguridad.claveJWT
+    let obj = jwt.verify(tk, ConfiguracionSeguridad.claveJWT);
     return obj.role;
   }
 
   /**
    * Retorna los permisos del rol
-   * @param idRol id del rol a buscar y que esta asociado al usuario
+   * @param idRol id del rol a buscar y que está asociado al usuario
    */
-  async ConsultarLosPermisosDeMenuPorUsuario(idRol: string): Promise<RolMenu[]> {
-    let menu: RolMenu[] = await this.repositorioRolMenu.find({
-      where: {
-        listar: true,
-        rolId: idRol
+  async ConsultarPermisosDeMenuPorUsuario(idRol: string): Promise<RolMenu[]> {
+    let menu: RolMenu[] = await this.repositorioRolMenu.find(
+      {
+        where: {
+          listar: true,
+          rolId: idRol
+        }
       }
-    })
+    );
     return menu;
   }
 }
